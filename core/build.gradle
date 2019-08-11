@@ -1,5 +1,7 @@
+apply plugin: 'com.github.dcendents.android-maven'
 apply plugin: 'com.android.library'
-apply plugin: 'maven'
+
+group='com.github.stefanhaustein.abcmoji'
 
 android {
     compileSdkVersion 27
