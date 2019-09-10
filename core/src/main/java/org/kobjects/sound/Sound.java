@@ -3,8 +3,12 @@ package org.kobjects.sound;
 
 import org.kobjects.atg.ToneGenerator;
 
+import java.util.ArrayList;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.DelayQueue;
+import java.util.concurrent.Delayed;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 public class Sound {
 
@@ -28,7 +32,7 @@ public class Sound {
   public void play(boolean blocking) {
     if (blocking) {
       try {
-        new Voice().playImpl();
+        new Player().play();
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
@@ -139,8 +143,41 @@ public class Sound {
     }
   }
 
-  class Voice {
+  class Note implements Delayed {
+    final long scheduledTimeMs;
+    final float frequency;
+    final int length;
+
+    Note (long scheduledTimeMs, float frequency, int length) {
+      this.scheduledTimeMs = scheduledTimeMs;
+      this.frequency = frequency;
+      this.length = length;
+    }
+
+    @Override
+    public long getDelay(TimeUnit unit) {
+      return unit.convert(scheduledTimeMs - System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public int compareTo(Delayed o) {
+      return Long.compare(getDelay(TimeUnit.MILLISECONDS), o.getDelay(TimeUnit.MILLISECONDS));
+    }
+  }
+
+  static class Voice {
+    long timeMs;
+
+    Voice(long t0) {
+      timeMs = t0;
+    }
+  }
+
+  class Player {
     AbcTokenizer tokenizer = new AbcTokenizer();
+    ArrayList<Voice> voices = new ArrayList<>();
+    DelayQueue<Note> noteQueue = new DelayQueue<>();
+    Voice voice = new Voice(System.currentTimeMillis());
 
     private void processMeter() {
       float meter;
@@ -206,8 +243,21 @@ public class Sound {
       }
     }
 
-    private void playImpl() throws InterruptedException {
+    private void play() throws InterruptedException {
+      voices.add(voice);
       tokenizer.next();
+
+      new Thread(() -> {
+        while (true) {
+          try {
+            Note note = noteQueue.take();
+            toneGenerator.play(note.frequency, note.length);
+          } catch (InterruptedException e) {
+            throw new RuntimeException();
+          }
+        }
+      }).start();
+
       boolean nowait = false;
       int count = 0;
       int firstTime = 0;
@@ -349,12 +399,11 @@ public class Sound {
       float frequency = (float) (440 * Math.pow(2, note/12f));
 
       int durationMs = (int) (duration*1000);
+
       if (!rest) {
-        toneGenerator.play(frequency, durationMs);
+        noteQueue.offer(new Note(voice.timeMs, frequency, durationMs));
       }
-      if (!nowait) {
-        Thread.sleep(durationMs);
-      }
+      voice.timeMs += durationMs;
       return durationMs;
     }
   }
