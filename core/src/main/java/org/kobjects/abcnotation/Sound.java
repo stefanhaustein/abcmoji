@@ -1,4 +1,4 @@
-package org.kobjects.sound;
+package org.kobjects.abcnotation;
 
 
 import org.kobjects.atg.ToneGenerator;
@@ -63,19 +63,16 @@ public class Sound {
     }
   }
 
-  static class Voice {
-    long timeMs;
-
-    Voice(long t0) {
-      timeMs = t0;
-    }
-  }
 
   class Player {
     AbcTokenizer tokenizer = new AbcTokenizer(abcData);
-    ArrayList<Voice> voices = new ArrayList<>();
     DelayQueue<Note> noteQueue = new DelayQueue<>();
-    Voice voice = new Voice(System.currentTimeMillis());
+    long timeMs;
+    long chordStartTimeMs;
+    long[] chordEndTimeMs = new long[10];
+    int chordIndex = -1;
+    long[] voiceTimeMS = new long [10];
+    int voiceIndex = 0;
 
     private void processMeter() {
       float meter;
@@ -95,7 +92,6 @@ public class Sound {
     private void processLength() {
       baseLength = tokenizer.consumeFraction();
       explicitLength = true;
-      System.out.println("base length: " + baseLength);
       tokenizer.skipToLineEnd();
     }
 
@@ -132,6 +128,14 @@ public class Sound {
         case 'Q':
           parseTempo();
           break;
+        case 'V':
+          voiceTimeMS[voiceIndex] = timeMs;
+          voiceIndex = (int) tokenizer.consumeNumber();
+          timeMs = voiceTimeMS[voiceIndex];
+          do {
+            tokenizer.next();
+          } while (tokenizer.tokenType != AbcTokenizer.TokenType.NEWLINE && tokenizer.tokenType != AbcTokenizer.TokenType.END);
+          break;
 
         default:
           do {
@@ -142,7 +146,10 @@ public class Sound {
     }
 
     private void play() throws InterruptedException {
-      voices.add(voice);
+      timeMs = System.currentTimeMillis();
+      for (int i = 0; i < voiceTimeMS.length; i++) {
+        voiceTimeMS[i] = timeMs;
+      }
       tokenizer.next();
 
       new Thread(() -> {
@@ -156,9 +163,6 @@ public class Sound {
         }
       }).start();
 
-      boolean nowait = false;
-      int count = 0;
-      int firstTime = 0;
       while (tokenizer.tokenType != AbcTokenizer.TokenType.END) {
         switch (tokenizer.tokenType) {
           case NEWLINE:
@@ -170,25 +174,29 @@ public class Sound {
             processControl(tokenizer.c);
             break;
           case OPEN_BRACKET:
-            nowait = true;
-            count = 0;
+            chordIndex = 0;
+            chordStartTimeMs = timeMs;
             tokenizer.next();
             break;
           case CLOSE_BRACKET:
-            nowait = false;
-            if (count > 1){
-              Thread.sleep(firstTime);
-            }
+            chordIndex = -1;
+            timeMs = chordEndTimeMs[0];
+            tokenizer.next();
             break;
           case SHARP:
           case FLAT:
           case LETTER:
-            int time = processNote(nowait);
-            if (count == 0) {
-              firstTime = time;
+            if (chordIndex == -1) {
+              processNote();
+            } else {
+              timeMs = chordStartTimeMs;
+              //timeMs = Math.max(chordEndTimeMs[chordIndex], timeMs);
+              processNote();
+              chordEndTimeMs[chordIndex++] = timeMs;
+              //timeMs = chordStartTimeMs;
             }
-            count++;
             break;
+
           case OTHER:
               BlockingQueue<String> queue = new LinkedBlockingQueue<>();
               manager.play(
@@ -199,11 +207,15 @@ public class Sound {
               queue.take();
             tokenizer.next();
             break;
+
+            default:
+              System.out.println("Unexpected symbol: " + tokenizer.tokenType);
+              tokenizer.next();
         }
       }
     }
 
-    private int processNote(boolean nowait) throws InterruptedException {
+    private void processNote() throws InterruptedException {
       float note = 0;
       do {
         switch (tokenizer.tokenType) {
@@ -282,7 +294,7 @@ public class Sound {
         default:
       }
 
-      do {
+      while(true) {
         switch(tokenizer.next()) {
           case UP:
             note += 12;
@@ -291,7 +303,8 @@ public class Sound {
             note -= 12;
             continue;
         }
-      } while (false);
+        break;
+      }
 
       float duration = baseLength * tokenizer.consumeFraction() * 60 / bpm;
       float frequency = (float) (440 * Math.pow(2, note/12f));
@@ -299,10 +312,9 @@ public class Sound {
       int durationMs = (int) (duration*1000);
 
       if (!rest) {
-        noteQueue.offer(new Note(voice.timeMs, frequency, durationMs));
+        noteQueue.offer(new Note(timeMs, frequency, durationMs));
       }
-      voice.timeMs += durationMs;
-      return durationMs;
+      timeMs += durationMs;
     }
   }
 }

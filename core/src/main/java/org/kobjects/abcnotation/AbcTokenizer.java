@@ -1,4 +1,4 @@
-package org.kobjects.sound;
+package org.kobjects.abcnotation;
 
 class AbcTokenizer {
 
@@ -46,7 +46,10 @@ class AbcTokenizer {
     }
 
     switch (c) {
-      case ' ': return tokenType = TokenType.SPACE;
+      case '\t':
+      case '\r':
+      case ' ':
+        return tokenType = TokenType.SPACE;
       case '\n': return tokenType = TokenType.NEWLINE;
       case '^': return tokenType = TokenType.SHARP;
       case '_': return tokenType = TokenType.FLAT;

@@ -1,4 +1,4 @@
-package org.kobjects.sound;
+package org.kobjects.abcnotation;
 
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
