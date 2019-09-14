@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
 apply plugin: 'com.github.dcendents.android-maven'
-group='com.github.stefanhaustein.emojisprites'
+group='com.github.stefanhaustein.abcnotation'
 
 android {
     compileSdkVersion 28
@@ -10,9 +10,6 @@ android {
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 28
-
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-
     }
 
     compileOptions {
@@ -32,5 +29,6 @@ artifacts {
 
 dependencies {
     api project(path: ':core')
+    api project(path: ':sounds')
 
 }

@@ -2,6 +2,7 @@ package org.kobjects.abcnotation;
 
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
+import android.media.MediaMetadataRetriever;
 import android.media.MediaPlayer;
 
 import java.io.IOException;
@@ -22,18 +23,41 @@ public class SampleManager {
         }
     }
 
+    public String getFileName(String name) {
+        if (sounds.contains(name + ".mp3")) {
+            return "sound/" + name + ".mp3";
+        }
+        if (sounds.contains(name + ".wav")) {
+            return "sound/" + name + ".wav";
+        }
+        return null;
+    }
+
+    public int getDurationMs(String name) {
+        String fileName = getFileName(name);
+        if (fileName == null) {
+            return 0;
+        }
+        MediaMetadataRetriever mmr = new MediaMetadataRetriever();
+        try (final AssetFileDescriptor fd = context.getAssets().openFd(fileName)) {
+            mmr.setDataSource(fd.getFileDescriptor(), fd.getStartOffset(), fd.getLength());
+            String durationStr = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+            return Integer.parseInt(durationStr);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     public boolean play(String name, final Runnable callback) {
-        if (sounds.contains(name + ".mp3")) {
-            name += ".mp3";
-        } else if (sounds.contains(name + ".wav")) {
-            name += ".wav";
-        } else {
-            callback.run();
+        final String fileName = getFileName(name);
+        if (fileName == null) {
+            if (callback != null) {
+                callback.run();
+            }
             return false;
         }
-        try {
-            AssetFileDescriptor descriptor = context.getAssets().openFd("sound/" + name);
+        try (AssetFileDescriptor descriptor = context.getAssets().openFd(fileName)) {
             final MediaPlayer m = new MediaPlayer();
             m.setDataSource(descriptor.getFileDescriptor(), descriptor.getStartOffset(), descriptor.getLength());
             descriptor.close();
@@ -41,7 +65,9 @@ public class SampleManager {
                 @Override
                 public void onCompletion(MediaPlayer mediaPlayer) {
                     m.release();
-                    callback.run();
+                    if (callback != null) {
+                        callback.run();
+                    }
                 }
             });
 

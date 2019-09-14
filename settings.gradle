@@ -1,2 +1,1 @@
-include ':demo'
-include ':core'
+include ':demo', ':sounds', ':core'

@@ -25,8 +25,3 @@ android {
     }
 
 }
-
-dependencies {
-    api "com.github.stefanhaustein.android-tone-generator:core:v1.0.1"
-}
-

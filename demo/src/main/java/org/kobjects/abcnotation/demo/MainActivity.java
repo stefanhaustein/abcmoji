@@ -13,7 +13,7 @@ import android.widget.LinearLayout;
 import android.widget.Spinner;
 
 import org.kobjects.abcnotation.SampleManager;
-import org.kobjects.abcnotation.Sound;
+import org.kobjects.abcnotation.AbcScore;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -23,7 +23,7 @@ import java.net.URL;
 
 public class MainActivity extends Activity {
 
-  String[] URLS = {"Frere Jaques","http://www.lotro-abc.com/abc/beefur.abc"};
+  String[] URLS = {"Frere Jaques","http://www.lotro-abc.com/abc/haraxe.abc","http://www.lotro-abc.com/abc/ateam.abc","http://www.lotro-abc.com/abc/beefur.abc"};
 
   String SAMPLE_SONG = "% Generated more or less automatically by swtoabc by Erich Rickheit KSC\n"
       + "X:1\n"
@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
     layout.addView(button);
 
     button.setOnClickListener(view -> {
-      new Sound(sampleManager, editText.getText().toString()).play();
+      new AbcScore(sampleManager, editText.getText().toString()).play();
     });
 
     setContentView(layout);
